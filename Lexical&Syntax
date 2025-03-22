@@ -1,0 +1,168 @@
+#include <iostream>
+#include <string>
+#include <cctype>
+#include <vector>
+
+
+enum Token {
+    NUMBER,
+    OPERATOR_PLUS,
+    OPERATOR_MINUS,
+    OPERATOR_MUL,
+    OPERATOR_DIV,
+    END,
+    INVALID
+};
+
+
+struct TokenInfo {
+    Token type;
+    std::string value;
+};
+
+
+class Lexer {
+public:
+    Lexer(const std::string& input) : expression(input), index(0) {}
+
+    TokenInfo getNextToken() {
+        TokenInfo token;
+        
+        
+        while (index < expression.length() && std::isspace(expression[index])) {
+            ++index;
+        }
+
+        if (index >= expression.length()) { 
+            token.type = END;
+            return token;
+        }
+
+        char currentChar = expression[index];
+
+      
+        if (std::isdigit(currentChar)) {
+            size_t start = index;
+            while (index < expression.length() && std::isdigit(expression[index])) {
+                ++index;
+            }
+            token.value = expression.substr(start, index - start);
+            token.type = NUMBER;
+        }
+        
+        else if (currentChar == '+') {
+            token.value = "+";
+            token.type = OPERATOR_PLUS;
+            ++index;
+        }
+        else if (currentChar == '-') {
+            token.value = "-";
+            token.type = OPERATOR_MINUS;
+            ++index;
+        }
+        else if (currentChar == '*') {
+            token.value = "*";
+            token.type = OPERATOR_MUL;
+            ++index;
+        }
+        else if (currentChar == '/') {
+            token.value = "/";
+            token.type = OPERATOR_DIV;
+            ++index;
+        }
+        else {
+            token.value = std::string(1, currentChar);
+            token.type = INVALID;  
+            ++index;
+        }
+
+        return token;
+    }
+
+private:
+    std::string expression;
+    size_t index;
+};
+
+
+class Parser {
+public:
+    Parser(Lexer& lexer) : lexer(lexer) {
+        currentToken = lexer.getNextToken();
+    }
+
+    int parseExpression() {
+        int result = parseTerm();
+        
+        while (currentToken.type == OPERATOR_PLUS || currentToken.type == OPERATOR_MINUS) {
+            if (currentToken.type == OPERATOR_PLUS) {
+                currentToken = lexer.getNextToken();
+                result += parseTerm();
+            }
+            else if (currentToken.type == OPERATOR_MINUS) {
+                currentToken = lexer.getNextToken();
+                result -= parseTerm();
+            }
+        }
+
+        return result;
+    }
+
+private:
+    Lexer& lexer;
+    TokenInfo currentToken;
+
+    int parseTerm() {
+        int result = parseFactor();
+
+        while (currentToken.type == OPERATOR_MUL || currentToken.type == OPERATOR_DIV) {
+            if (currentToken.type == OPERATOR_MUL) {
+                currentToken = lexer.getNextToken();
+                result *= parseFactor();
+            }
+            else if (currentToken.type == OPERATOR_DIV) {
+                currentToken = lexer.getNextToken();
+                int divisor = parseFactor();
+                if (divisor == 0) {
+                    std::cerr << "Error: Division by zero!" << std::endl;
+                    exit(1);
+                }
+                result /= divisor;
+            }
+        }
+
+        return result;
+    }
+
+    int parseFactor() {
+        if (currentToken.type == NUMBER) {
+            int value = std::stoi(currentToken.value);
+            currentToken = lexer.getNextToken();
+            return value;
+        }
+        else {
+            std::cerr << "Error: Expected a number, but got invalid token!" << std::endl;
+            exit(1);
+        }
+    }
+};
+
+int main() {
+    std::string expression;
+
+    std::cout << "Enter an arithmetic expression: ";
+    std::getline(std::cin, expression);
+
+    Lexer lexer(expression);
+    Parser parser(lexer);
+
+    try {
+        int result = parser.parseExpression();
+        std::cout << "Result: " << result << std::endl;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
+    return 0;
+}
